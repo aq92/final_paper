@@ -1,0 +1,858 @@
+---
+output: 
+  pdf_document:
+    citation_package: natbib
+    keep_tex: false
+    fig_caption: true
+    latex_engine: pdflatex
+    template: svm-latex-ms2.tex
+title: "Ballot Options, Political Information, and Straight Ticket Voting" 
+thanks: "The paper's revision history and the materials needed to reproduce its analyses can be found [on Github here](https://github.com/aq92/7450paper.git). Corresponding author: [ahmad-qabazard@uiowa.edu](mailto:ahmad-qabazard@uiowa.edu). Current version: `r format(Sys.time(), '%B %d, %Y')`."
+author:
+- name: Ahmad S. Qabazard
+  affiliation: University of Iowa
+abstract: "This paper examines the effects of removing straight ticket options from election ballots in the United States. I show that voters with low levels of political sophistication are more likely to use straight ticket options when they are available to them. I posit that removing straight ticket options further disadvantages less politically sophisticated voters. To test these propositions, I use survey data from 2018 and panel data between 2010-2014 from the Cooperative Congressional Election Study (CCES). In states with straight ticket voting ballot options, the results of a logistic regression indicate that increases in political sophistication correspond to a decrease in the likelihood of using straight ticket options. Using panel data and a difference-in-difference design, I show that the removal of the straight ticket option leads voters to become less likely to cast straight party ballots and more likely to cast undervotes. "
+keywords: "Straight-Ticket Voting, Split-Ticket Voting, Political Knowledge"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+fontsize: 12pt
+spacing: double
+bibliography: \dummy{`r file.path(getwd(),'qabazard-7450')`}
+
+biblio-style: apsr
+citecolor: black
+linkcolor: black
+endnote: no
+---
+
+```{r include=FALSE}
+
+#Load data
+library(readstata13)
+CCES2018 <- read.dta13("CCES2018_OUTPUT.dta", convert.factors = FALSE)
+CCES_Panel <- read.dta13("CCES_Panel_Full3waves_VV_V4.dta", convert.factors = FALSE)
+
+#Recode Variables
+
+#Race
+CCES2018$white <- ifelse(CCES2018$race == 1, 
+1, 0) 
+
+CCES2018$black <- ifelse(CCES2018$race == 2, 
+1, 0)
+
+CCES2018$hisp <- ifelse(CCES2018$race == 3, 
+1, 0)
+
+CCES2018$other <- ifelse(CCES2018$race > 3, 
+1, 0)
+
+#Income before imputation
+CCES2018$income <- ifelse(CCES2018$famin == 31, 
+12, 0)
+
+CCES2018$income <- ifelse(CCES2018$famin == 97, 
+NA, CCES2018$famin)
+
+#Married
+
+CCES2018$married <- ifelse(CCES2018$marstat == 1, 
+1, 0)
+
+#Party ID
+CCES2018$rep <- ifelse(CCES2018$pid3 == 2, 
+1, 0)
+
+CCES2018$dem <- ifelse(CCES2018$pid3 == 1, 
+1, 0)
+
+#Ideology
+
+CCES2018$conserv <- ifelse(CCES2018$ideo5 == 6, 
+3, CCES2018$ideo5)
+
+CCES2018$conserv[is.na(CCES2018$conserv)] <- 3
+
+summary(CCES2018$conserv)
+
+#Party ID
+CCES2018$rep <- ifelse(CCES2018$pid3 == 2, 
+1, 0)
+
+CCES2018$dem <- ifelse(CCES2018$pid3 == 1, 
+1, 0)
+
+#Education not recoded
+
+summary(CCES2018$educ)
+
+#Income before imputation
+CCES2018$income <- ifelse(CCES2018$famin == 31, 
+12, 0)
+
+CCES2018$income <- ifelse(CCES2018$famin == 97, 
+NA, CCES2018$famin)
+
+#Stock 
+
+CCES2018$invest <- ifelse(CCES2018$investor == 1, 
+1, 0)
+
+#Age 
+
+CCES2018$age <- 2018-CCES2018$birthyr 
+
+#Male
+CCES2018$male <- ifelse(CCES2018$gender == 1, 
+1, 0)
+
+#Employed
+CCES2018$employed <- ifelse(CCES2018$employ == 1, 
+1, 0)
+
+CCES2018$employed <- ifelse(CCES2018$employ == 2, 
+1, CCES2018$employed)
+
+#Political Interest
+CCES2018$interest <- ifelse(CCES2018$newsint == 7, 
+1, CCES2018$newsint)
+
+CCES2018$interest <- ifelse(CCES2018$newsint == 4, 
+1, CCES2018$interest)
+
+CCES2018$interest <- ifelse(CCES2018$newsint == 3, 
+2, CCES2018$interest)
+
+CCES2018$interest <- ifelse(CCES2018$newsint == 2, 
+3, CCES2018$interest)
+
+CCES2018$interest <- ifelse(CCES2018$newsint == 1, 
+4, CCES2018$interest)
+
+##Partisanship 
+
+CCES2018$partystr <- ifelse(CCES2018$pid7 == 1, 
+3, 0)
+CCES2018$partystr <- ifelse(CCES2018$pid7 == 2, 
+2, CCES2018$partystr)
+CCES2018$partystr <- ifelse(CCES2018$pid7 == 3, 
+1, CCES2018$partystr)
+CCES2018$partystr <- ifelse(CCES2018$pid7 == 4, 
+0, CCES2018$partystr)
+CCES2018$partystr <- ifelse(CCES2018$pid7 == 5, 
+3, CCES2018$partystr)
+CCES2018$partystr <- ifelse(CCES2018$pid7 == 6, 
+2, CCES2018$partystr)
+CCES2018$partystr <- ifelse(CCES2018$pid7 == 7, 
+1, CCES2018$partystr)
+CCES2018$partystr <- ifelse(CCES2018$pid7 == 8, 
+0, CCES2018$partystr)
+
+#Political Knowledge
+
+CCES2018$governor_recall <- ifelse(CCES2018$CC18_309a==1 & CCES2018$CurrentGovParty_post=="Republican", 1, 0)
+CCES2018$governor_recall <- ifelse(CCES2018$CC18_309a==2 & CCES2018$CurrentGovParty_post=="Democratic", 1, CCES2018$governor_recall)
+CCES2018$governor_recall <- ifelse(CCES2018$CC18_309a==3 & CCES2018$CurrentGovParty_post=="Independent", 1, CCES2018$governor_recall)
+CCES2018$governor_recall <- ifelse(CCES2018$CC18_309a=="NA", "NA", CCES2018$governor_recall)
+summary(CCES2018$governor_recall)
+
+CCES2018$senator1_recall <- ifelse(CCES2018$CC18_310b==2 & CCES2018$CurrentSen1Party_post=="Republican", 1, 0)
+CCES2018$senator1_recall <- ifelse(CCES2018$CC18_310b==3 & CCES2018$CurrentSen1Party_post=="Democratic", 1, CCES2018$senator1_recall)
+CCES2018$senator1_recall <- ifelse(CCES2018$CC18_310b==4 & CCES2018$CurrentSen1Party_post=="Independent", 1, CCES2018$senator1_recall)
+CCES2018$senator1_recall <- ifelse(CCES2018$CC18_310b=="NA", "NA", CCES2018$senator1_recall)
+summary(CCES2018$senator1_recall)
+
+CCES2018$senator2_recall <- ifelse(CCES2018$CC18_310c==2 & CCES2018$CurrentSen2Party_post=="Republican", 1, 0)
+CCES2018$senator2_recall <- ifelse(CCES2018$CC18_310c==3 & CCES2018$CurrentSen2Party_post=="Democratic", 1, CCES2018$senator2_recall)
+CCES2018$senator2_recall <- ifelse(CCES2018$CC18_310c=="NA", "NA", CCES2018$senator2_recall)
+summary(CCES2018$senator2_recall)
+
+CCES2018$houserep_recall <- ifelse(CCES2018$CC18_310d==2 & CCES2018$CurrentSen2Party_post=="Republican", 1, 0)
+CCES2018$houserep_recall <- ifelse(CCES2018$CC18_310d==3 & CCES2018$CurrentSen2Party_post=="Democratic", 1, CCES2018$houserep_recall)
+CCES2018$houserep_recall <- ifelse(CCES2018$CC18_310d=="NA", "NA", CCES2018$houserep_recall)
+summary(CCES2018$houserep_recall)
+
+
+CCES2018$recall_reps <- CCES2018$governor_recall + CCES2018$senator1_recall + CCES2018$senator2_recall + CCES2018$houserep_recall
+summary(CCES2018$recall_reps)
+
+
+##Political Knowledge 2 
+
+CCES2018$house_party <- ifelse(CCES2018$CC18_309a==2, 1,0)
+CCES2018$senate_party <- ifelse(CCES2018$CC18_309b==1, 1,0)
+CCES2018$state_senate <- ifelse(CCES2018$CC18_309c==1 & CCES2018$inputstate==1, 1, 0)
+CCES2018$state_senate <- ifelse(CCES2018$CC18_309c==1 & CCES2018$inputstate==18, 1, CCES2018$state_senate)
+CCES2018$state_senate <- ifelse(CCES2018$CC18_309c==1 & CCES2018$inputstate==21, 1, CCES2018$state_senate)
+CCES2018$state_senate <- ifelse(CCES2018$CC18_309c==1 & CCES2018$inputstate==40, 1, CCES2018$state_senate)
+CCES2018$state_senate <- ifelse(CCES2018$CC18_309c==1 & CCES2018$inputstate==42, 1, CCES2018$state_senate)
+CCES2018$state_senate <- ifelse(CCES2018$CC18_309c==1 & CCES2018$inputstate==45, 1, CCES2018$state_senate)
+CCES2018$state_senate <- ifelse(CCES2018$CC18_309c==1 & CCES2018$inputstate==48, 1, CCES2018$state_senate)
+CCES2018$state_senate <- ifelse(CCES2018$CC18_309c==1 & CCES2018$inputstate==49, 1, CCES2018$state_senate)
+
+CCES2018$state_house <- ifelse(CCES2018$CC18_309d==1 & CCES2018$inputstate==1, 1, 0)
+CCES2018$state_house <- ifelse(CCES2018$CC18_309d==1 & CCES2018$inputstate==18, 1, CCES2018$state_house)
+CCES2018$state_house <- ifelse(CCES2018$CC18_309d==1 & CCES2018$inputstate==21, 1, CCES2018$state_house)
+CCES2018$state_house <- ifelse(CCES2018$CC18_309d==1 & CCES2018$inputstate==40, 1, CCES2018$state_house)
+CCES2018$state_house <- ifelse(CCES2018$CC18_309d==1 & CCES2018$inputstate==42, 1, CCES2018$state_house)
+CCES2018$state_house <- ifelse(CCES2018$CC18_309d==1 & CCES2018$inputstate==45, 1, CCES2018$state_house)
+CCES2018$state_house <- ifelse(CCES2018$CC18_309d==1 & CCES2018$inputstate==48, 1, CCES2018$state_house)
+CCES2018$state_house <- ifelse(CCES2018$CC18_309d==1 & CCES2018$inputstate==49, 1, CCES2018$state_house)
+
+CCES2018$pol_know <- CCES2018$house_party + CCES2018$senate_party + CCES2018$state_senate + CCES2018$state_house
+
+summary(CCES2018$pol_know)
+
+
+
+##State Fixed Effects 
+CCES2018$Alabama <- ifelse(CCES2018$inputstate==1, 1, 0)
+CCES2018$Indiana <- ifelse(CCES2018$inputstate==18, 1, 0)
+CCES2018$Kentucky <- ifelse(CCES2018$inputstate==21, 1, 0)
+CCES2018$Oklahoma <- ifelse(CCES2018$inputstate==40, 1, 0)
+CCES2018$Pennsylvania <- ifelse(CCES2018$inputstate==42, 1, 0)
+CCES2018$SouthCarolina <- ifelse(CCES2018$inputstate==45, 1, 0)
+CCES2018$Texas <- ifelse(CCES2018$inputstate==48, 1, 0)
+CCES2018$Utah <- ifelse(CCES2018$inputstate==49, 1, 0)
+
+#Straigh Ticket Option State
+
+CCES2018$straight_option <- ifelse(CCES2018$Utah==1 | CCES2018$Texas==1 | CCES2018$SouthCarolina==1 |  CCES2018$Pennsylvania==1 | CCES2018$Oklahoma==1 | CCES2018$Kentucky==1 | CCES2018$Indiana==1 | CCES2018$Alabama==1, 1,0)
+
+#DV Straight Ticket Option Use
+CCES2018$straight_ticket <- ifelse(CCES2018$CC18_408==2, 1, 0) 
+CCES2018$straight_ticket <- ifelse(CCES2018$CC18_408=="NA", "NA", CCES2018$straight_ticket) 
+
+##Under Vote 
+CCES2018$under_vote <- ifelse(CCES2018$CC18_410b==5 | CCES2018$CC18_412== 6 | CCES2018$CC18_420a == 4 | CCES2018$CC18_420b ==4 | CCES2018$CC18_420c == 4 | CCES2018$CC18_411==5, 1, 0)
+CCES2018$under_vote <- ifelse(CCES2018$straight_ticket==1, 0, CCES2018$under_vote)
+
+
+##########PANEL DATA 
+
+#2010
+
+#Age 
+
+CCES_Panel$age_10 <- 2010-CCES_Panel$birthyr_10
+CCES_Panel$age_14 <- 2014-CCES_Panel$birthyr_14
+
+#Male
+CCES_Panel$male_10 <- ifelse(CCES_Panel$gender_10 == 1, 
+1, 0)
+
+CCES_Panel$male_14 <- ifelse(CCES_Panel$gender_14 == 1, 
+1, 0)
+
+#Employed
+CCES_Panel$employed_10 <- ifelse(CCES_Panel$employ_10 == 1, 
+1, 0)
+
+CCES_Panel$employed_14 <- ifelse(CCES_Panel$employ_14 == 1, 
+1, 0)
+
+CCES_Panel$employed_10 <- ifelse(CCES_Panel$employ_10 == 2, 
+1, CCES_Panel$employed_10)
+
+CCES_Panel$employed_14 <- ifelse(CCES_Panel$employ_14 == 2, 
+1, CCES_Panel$employed_14)
+
+
+#Income 
+
+CCES_Panel$income_10 <- ifelse(CCES_Panel$faminc_10 == 31, 
+12, 0)
+
+CCES_Panel$income_10 <- ifelse(CCES_Panel$faminc_10 == 97, 
+NA, CCES_Panel$faminc_10)
+
+CCES_Panel$income_14 <- ifelse(CCES_Panel$faminc_14 == 31, 
+12, 0)
+
+CCES_Panel$income_14 <- ifelse(CCES_Panel$faminc_14 == 97, 
+NA, CCES_Panel$faminc_14)
+
+#Married
+
+CCES_Panel$married_10 <- ifelse(CCES_Panel$marstat_10 == 1, 
+1, 0)
+
+CCES_Panel$married_14 <- ifelse(CCES_Panel$marstat_14 == 1, 
+1, 0)
+
+
+#Party ID
+CCES_Panel$rep_10 <- ifelse(CCES_Panel$pid3_10 == 2, 
+1, 0)
+
+CCES_Panel$dem_10 <- ifelse(CCES_Panel$pid3_10 == 1, 
+1, 0)
+
+CCES_Panel$rep_14 <- ifelse(CCES_Panel$pid3_14 == 2, 
+1, 0)
+
+CCES_Panel$dem_14 <- ifelse(CCES_Panel$pid3_14 == 1, 
+1, 0)
+
+#Ideology
+
+CCES_Panel$conserv_10 <- ifelse(CCES_Panel$ideo5_10 == 6, 
+3, CCES_Panel$ideo5_10)
+
+CCES_Panel$conserv_10[is.na(CCES_Panel$conserv_10)] <- 3
+
+summary(CCES_Panel$conserv_10)
+
+CCES_Panel$conserv_14 <- ifelse(CCES_Panel$ideo5_14 == 6, 
+3, CCES_Panel$ideo5_14)
+
+CCES_Panel$conserv_14[is.na(CCES_Panel$conserv_14)] <- 3
+
+summary(CCES_Panel$conserv_14)
+
+#Race
+CCES_Panel$white_10 <- ifelse(CCES_Panel$race_10 == 1, 
+1, 0) 
+
+CCES_Panel$black_10 <- ifelse(CCES_Panel$race_10 == 2, 
+1, 0)
+
+CCES_Panel$hisp_10 <- ifelse(CCES_Panel$race_10 == 3, 
+1, 0)
+
+CCES_Panel$other_10 <- ifelse(CCES_Panel$race_10 > 3, 
+1, 0)
+
+
+CCES_Panel$white_14 <- ifelse(CCES_Panel$race_14 == 1, 
+1, 0) 
+
+CCES_Panel$black_14 <- ifelse(CCES_Panel$race_14 == 2, 
+1, 0)
+
+CCES_Panel$hisp_14 <- ifelse(CCES_Panel$race_14 == 3, 
+1, 0)
+
+CCES_Panel$other_14 <- ifelse(CCES_Panel$race_14 > 3, 
+1, 0)
+
+##Education 
+
+summary(CCES_Panel$educ_10)
+summary(CCES_Panel$educ_14)
+
+#Stock 
+
+CCES_Panel$invest_10 <- ifelse(CCES_Panel$investor_10 == 1, 
+1, 0)
+
+CCES_Panel$invest_14 <- ifelse(CCES_Panel$investor_14 == 1, 
+1, 0)
+
+
+##IMPUTE INCOME 
+
+#Political Interest
+CCES_Panel$interest_10 <- ifelse(CCES_Panel$newsint_10 == 7, 
+1, 0)
+
+CCES_Panel$interest_10 <- ifelse(CCES_Panel$newsint_10 == 4, 
+1, CCES_Panel$interest_10)
+
+CCES_Panel$interest_10 <- ifelse(CCES_Panel$newsint_10 == 3, 
+2, CCES_Panel$interest_10)
+
+CCES_Panel$interest_10 <- ifelse(CCES_Panel$newsint_10 == 2, 
+3, CCES_Panel$interest_10)
+
+CCES_Panel$interest_10 <- ifelse(CCES_Panel$newsint_10 == 1, 
+4, CCES_Panel$interest_10)
+
+
+CCES_Panel$interest_14 <- ifelse(CCES_Panel$newsint_14 == 7, 
+1, 0)
+
+CCES_Panel$interest_14 <- ifelse(CCES_Panel$newsint_14 == 4, 
+1, CCES_Panel$interest_14)
+
+CCES_Panel$interest_14 <- ifelse(CCES_Panel$newsint_14 == 3, 
+2, CCES_Panel$interest_14)
+
+CCES_Panel$interest_14 <- ifelse(CCES_Panel$newsint_14 == 2, 
+3, CCES_Panel$interest_14)
+
+CCES_Panel$interest_14 <- ifelse(CCES_Panel$newsint_14 == 1, 
+4, CCES_Panel$interest_14)
+
+##Partisanship 
+
+CCES_Panel$partystr_10 <- ifelse(CCES_Panel$pid7_10 == 1, 
+3, 0)
+CCES_Panel$partystr_10 <- ifelse(CCES_Panel$pid7_10 == 2, 
+2, CCES_Panel$partystr_10)
+CCES_Panel$partystr_10 <- ifelse(CCES_Panel$pid7_10 == 3, 
+1, CCES_Panel$partystr_10)
+CCES_Panel$partystr_10 <- ifelse(CCES_Panel$pid7_10 == 4, 
+0, CCES_Panel$partystr_10)
+CCES_Panel$partystr_10 <- ifelse(CCES_Panel$pid7_10 == 5, 
+3, CCES_Panel$partystr_10)
+CCES_Panel$partystr_10 <- ifelse(CCES_Panel$pid7_10 == 6, 
+2, CCES_Panel$partystr_10)
+CCES_Panel$partystr_10 <- ifelse(CCES_Panel$pid7_10 == 7, 
+1, CCES_Panel$partystr_10)
+CCES_Panel$partystr_10 <- ifelse(CCES_Panel$pid7_10 == 8, 
+0, CCES_Panel$partystr_10)
+
+CCES_Panel$partystr_14 <- ifelse(CCES_Panel$pid7_14 == 1, 
+3, 0)
+CCES_Panel$partystr_14 <- ifelse(CCES_Panel$pid7_14 == 2, 
+2, CCES_Panel$partystr_14)
+CCES_Panel$partystr_14 <- ifelse(CCES_Panel$pid7_14 == 3, 
+1, CCES_Panel$partystr_14)
+CCES_Panel$partystr_14 <- ifelse(CCES_Panel$pid7_14 == 4, 
+0, CCES_Panel$partystr_14)
+CCES_Panel$partystr_14 <- ifelse(CCES_Panel$pid7_14 == 5, 
+3, CCES_Panel$partystr_14)
+CCES_Panel$partystr_14 <- ifelse(CCES_Panel$pid7_14 == 6, 
+2, CCES_Panel$partystr_14)
+CCES_Panel$partystr_14 <- ifelse(CCES_Panel$pid7_14 == 7, 
+1, CCES_Panel$partystr_14)
+CCES_Panel$partystr_14 <- ifelse(CCES_Panel$pid7_14 == 8, 
+0, CCES_Panel$partystr_14)
+
+##Straight Ticket Option
+
+CCES_Panel$straight_option <- ifelse(CCES_Panel$inputstate_10==1 | CCES_Panel$inputstate_10==37 | CCES_Panel$inputstate_10==18 | CCES_Panel$inputstate_10==21 | CCES_Panel$inputstate_10==40 | CCES_Panel$inputstate_10==42 | CCES_Panel$inputstate_10==45 | CCES_Panel$inputstate_10==48 | CCES_Panel$inputstate_10==49 | CCES_Panel$inputstate_10==26 | CCES_Panel$inputstate_10==19 | CCES_Panel$inputstate_10==44 | CCES_Panel$inputstate_10==55 | CCES_Panel$inputstate_10==35, 1, 0)
+
+##Political Knowledge
+
+CCES_Panel$HouseParty_10 <- ifelse(CCES_Panel$CC10_309a== 2, 1, 0)
+CCES_Panel$SenateParty_10 <- ifelse(CCES_Panel$CC10_309b== 2, 1, 0)
+
+CCES_Panel$HouseParty_14 <- ifelse(CCES_Panel$CC14_309a== 2, 1, 0)
+CCES_Panel$SenateParty_14 <- ifelse(CCES_Panel$CC14_309b== 2, 1, 0)
+
+CCES_Panel$state_senate_10 <- ifelse(CCES_Panel$CC10_309c=="NA", "NA", 0)
+CCES_Panel$state_senate_10 <- ifelse(CCES_Panel$CC10_309c==2 & CCES_Panel$inputstate_10==37, 1, CCES_Panel$state_senate_10)
+CCES_Panel$state_senate_10 <- ifelse(CCES_Panel$CC10_309c==2 & CCES_Panel$inputstate_10==1, 1, CCES_Panel$state_senate_10)
+CCES_Panel$state_senate_10 <- ifelse(CCES_Panel$CC10_309c==1 & CCES_Panel$inputstate_10==18, 1, CCES_Panel$state_senate_10)
+CCES_Panel$state_senate_10 <- ifelse(CCES_Panel$CC10_309c==1 & CCES_Panel$inputstate_10==21, 1, CCES_Panel$state_senate_10)
+CCES_Panel$state_senate_10 <- ifelse(CCES_Panel$CC10_309c==1 & CCES_Panel$inputstate_10==40, 1, CCES_Panel$state_senate_10)
+CCES_Panel$state_senate_10 <- ifelse(CCES_Panel$CC10_309c==1 & CCES_Panel$inputstate_10==42, 1, CCES_Panel$state_senate_10)
+CCES_Panel$state_senate_10 <- ifelse(CCES_Panel$CC10_309c==1 & CCES_Panel$inputstate_10==45, 1, CCES_Panel$state_senate_10)
+CCES_Panel$state_senate_10 <- ifelse(CCES_Panel$CC10_309c==1 & CCES_Panel$inputstate_10==48, 1, CCES_Panel$state_senate_10)
+CCES_Panel$state_senate_10 <- ifelse(CCES_Panel$CC10_309c==1 & CCES_Panel$inputstate_10==49, 1, CCES_Panel$state_senate_10)
+CCES_Panel$state_senate_10 <- ifelse(CCES_Panel$CC10_309c==1 & CCES_Panel$inputstate_10==26, 1, CCES_Panel$state_senate_10)
+CCES_Panel$state_senate_10 <- ifelse(CCES_Panel$CC10_309c==2 & CCES_Panel$inputstate_10==19, 1, CCES_Panel$state_senate_10)
+CCES_Panel$state_senate_10 <- ifelse(CCES_Panel$CC10_309c==2 & CCES_Panel$inputstate_10==44, 1, CCES_Panel$state_senate_10)
+CCES_Panel$state_senate_10 <- ifelse(CCES_Panel$CC10_309c==2 & CCES_Panel$inputstate_10==55, 1, CCES_Panel$state_senate_10)
+CCES_Panel$state_senate_10 <- ifelse(CCES_Panel$CC10_309c==1 & CCES_Panel$inputstate_10==35, 1, CCES_Panel$state_senate_10)
+
+CCES_Panel$state_senate_14 <- ifelse(CCES_Panel$CC14_309c=="NA", "NA", 0)
+CCES_Panel$state_senate_14 <- ifelse(CCES_Panel$CC14_309c==1 & CCES_Panel$inputstate_14==37, 1, CCES_Panel$state_senate_14)
+CCES_Panel$state_senate_14 <- ifelse(CCES_Panel$CC14_309c==1 & CCES_Panel$inputstate_14==1, 1, CCES_Panel$state_senate_14)
+CCES_Panel$state_senate_14 <- ifelse(CCES_Panel$CC14_309c==1 & CCES_Panel$inputstate_14==18, 1, CCES_Panel$state_senate_14)
+CCES_Panel$state_senate_14 <- ifelse(CCES_Panel$CC14_309c==1 & CCES_Panel$inputstate_14==21, 1, CCES_Panel$state_senate_14)
+CCES_Panel$state_senate_14 <- ifelse(CCES_Panel$CC14_309c==1 & CCES_Panel$inputstate_14==40, 1, CCES_Panel$state_senate_14)
+CCES_Panel$state_senate_14 <- ifelse(CCES_Panel$CC14_309c==1 & CCES_Panel$inputstate_14==42, 1, CCES_Panel$state_senate_14)
+CCES_Panel$state_senate_14 <- ifelse(CCES_Panel$CC14_309c==1 & CCES_Panel$inputstate_14==45, 1, CCES_Panel$state_senate_14)
+CCES_Panel$state_senate_14 <- ifelse(CCES_Panel$CC14_309c==1 & CCES_Panel$inputstate_14==48, 1, CCES_Panel$state_senate_14)
+CCES_Panel$state_senate_14 <- ifelse(CCES_Panel$CC14_309c==1 & CCES_Panel$inputstate_14==49, 1, CCES_Panel$state_senate_14)
+CCES_Panel$state_senate_14 <- ifelse(CCES_Panel$CC14_309c==1 & CCES_Panel$inputstate_14==26, 1, CCES_Panel$state_senate_14)
+CCES_Panel$state_senate_14 <- ifelse(CCES_Panel$CC14_309c==2 & CCES_Panel$inputstate_14==19, 1, CCES_Panel$state_senate_14)
+CCES_Panel$state_senate_14 <- ifelse(CCES_Panel$CC14_309c==2 & CCES_Panel$inputstate_14==44, 1, CCES_Panel$state_senate_14)
+CCES_Panel$state_senate_14 <- ifelse(CCES_Panel$CC14_309c==1 & CCES_Panel$inputstate_14==55, 1, CCES_Panel$state_senate_14)
+CCES_Panel$state_senate_14 <- ifelse(CCES_Panel$CC14_309c==2 & CCES_Panel$inputstate_14==35, 1, CCES_Panel$state_senate_14)
+
+
+
+CCES_Panel$state_house_10 <- ifelse(CCES_Panel$CC10_309d=="NA", "NA", 0)
+CCES_Panel$state_house_10 <- ifelse(CCES_Panel$CC10_309d==2 & CCES_Panel$inputstate_10==37, 1, CCES_Panel$state_house_10)
+CCES_Panel$state_house_10 <- ifelse(CCES_Panel$CC10_309d==2 & CCES_Panel$inputstate_10==1, 1, CCES_Panel$state_house_10)
+CCES_Panel$state_house_10 <- ifelse(CCES_Panel$CC10_309d==2 & CCES_Panel$inputstate_10==18, 1, CCES_Panel$state_house_10)
+CCES_Panel$state_house_10 <- ifelse(CCES_Panel$CC10_309d==2 & CCES_Panel$inputstate_10==21, 1, CCES_Panel$state_house_10)
+CCES_Panel$state_house_10 <- ifelse(CCES_Panel$CC10_309d==1 & CCES_Panel$inputstate_10==40, 1, CCES_Panel$state_house_10)
+CCES_Panel$state_house_10 <- ifelse(CCES_Panel$CC10_309d==2 & CCES_Panel$inputstate_10==42, 1, CCES_Panel$state_house_10)
+CCES_Panel$state_house_10 <- ifelse(CCES_Panel$CC10_309d==1 & CCES_Panel$inputstate_10==45, 1, CCES_Panel$state_house_10)
+CCES_Panel$state_house_10 <- ifelse(CCES_Panel$CC10_309d==1 & CCES_Panel$inputstate_10==48, 1, CCES_Panel$state_house_10)
+CCES_Panel$state_house_10 <- ifelse(CCES_Panel$CC10_309d==1 & CCES_Panel$inputstate_10==49, 1, CCES_Panel$state_house_10)
+CCES_Panel$state_house_10 <- ifelse(CCES_Panel$CC10_309d==2 & CCES_Panel$inputstate_10==26, 1, CCES_Panel$state_house_10)
+CCES_Panel$state_house_10 <- ifelse(CCES_Panel$CC10_309d==2 & CCES_Panel$inputstate_10==19, 1, CCES_Panel$state_house_10)
+CCES_Panel$state_house_10 <- ifelse(CCES_Panel$CC10_309d==2 & CCES_Panel$inputstate_10==44, 1, CCES_Panel$state_house_10)
+CCES_Panel$state_house_10 <- ifelse(CCES_Panel$CC10_309d==2 & CCES_Panel$inputstate_10==55, 1, CCES_Panel$state_house_10)
+CCES_Panel$state_house_10 <- ifelse(CCES_Panel$CC10_309d==2 & CCES_Panel$inputstate_10==35, 1, CCES_Panel$state_house_10)
+
+CCES_Panel$state_house_14 <- ifelse(CCES_Panel$CC14_309d=="NA", "NA", 0)
+CCES_Panel$state_house_14 <- ifelse(CCES_Panel$CC14_309d==1 & CCES_Panel$inputstate_14==37, 1, CCES_Panel$state_house_14)
+CCES_Panel$state_house_14 <- ifelse(CCES_Panel$CC14_309d==1 & CCES_Panel$inputstate_14==1, 1, CCES_Panel$state_house_14)
+CCES_Panel$state_house_14 <- ifelse(CCES_Panel$CC14_309d==1 & CCES_Panel$inputstate_14==18, 1, CCES_Panel$state_house_14)
+CCES_Panel$state_house_14 <- ifelse(CCES_Panel$CC14_309d==2 & CCES_Panel$inputstate_14==21, 1, CCES_Panel$state_house_14)
+CCES_Panel$state_house_14 <- ifelse(CCES_Panel$CC14_309d==1 & CCES_Panel$inputstate_14==40, 1, CCES_Panel$state_house_14)
+CCES_Panel$state_house_14 <- ifelse(CCES_Panel$CC14_309d==1 & CCES_Panel$inputstate_14==42, 1, CCES_Panel$state_house_14)
+CCES_Panel$state_house_14 <- ifelse(CCES_Panel$CC14_309d==1 & CCES_Panel$inputstate_14==45, 1, CCES_Panel$state_house_14)
+CCES_Panel$state_house_14 <- ifelse(CCES_Panel$CC14_309d==1 & CCES_Panel$inputstate_14==48, 1, CCES_Panel$state_house_14)
+CCES_Panel$state_house_14 <- ifelse(CCES_Panel$CC14_309d==1 & CCES_Panel$inputstate_14==49, 1, CCES_Panel$state_house_14)
+CCES_Panel$state_house_14 <- ifelse(CCES_Panel$CC14_309d==1 & CCES_Panel$inputstate_14==26, 1, CCES_Panel$state_house_14)
+CCES_Panel$state_house_14 <- ifelse(CCES_Panel$CC14_309d==1 & CCES_Panel$inputstate_14==19, 1, CCES_Panel$state_house_14)
+CCES_Panel$state_house_14 <- ifelse(CCES_Panel$CC14_309d==2 & CCES_Panel$inputstate_14==44, 1, CCES_Panel$state_house_14)
+CCES_Panel$state_house_14 <- ifelse(CCES_Panel$CC14_309d==1 & CCES_Panel$inputstate_14==55, 1, CCES_Panel$state_house_14)
+CCES_Panel$state_house_14 <- ifelse(CCES_Panel$CC14_309d==2 & CCES_Panel$inputstate_14==35, 1, CCES_Panel$state_house_14)
+
+CCES_Panel$knowledge_10 = CCES_Panel$state_house_10 + CCES_Panel$state_senate_10 + CCES_Panel$HouseParty_10 + CCES_Panel$SenateParty_10
+CCES_Panel$knowledge_14 = CCES_Panel$state_house_14 + CCES_Panel$state_senate_14 + CCES_Panel$HouseParty_14 + CCES_Panel$SenateParty_14
+
+##DVS 
+
+##Straight-Ticket 
+CCES_Panel$straight_party_vote10 <- ifelse(CCES_Panel$CC10_355==1 & CCES_Panel$CC10_390==1 & CCES_Panel$CC10_413c==1 & CCES_Panel$CC10_413d==1, 1,0)
+CCES_Panel$straight_party_vote10 <- ifelse(CCES_Panel$CC10_355==2 & CCES_Panel$CC10_390==2 & CCES_Panel$CC10_413c==2 & CCES_Panel$CC10_413d==2, 1,CCES_Panel$straight_party_vote10)
+CCES_Panel$straight_party_vote10 <- ifelse(CCES_Panel$CC10_355=="NA" & CCES_Panel$CC10_390=="NA" & CCES_Panel$CC10_413c=="NA" & CCES_Panel$CC10_413d=="NA", "NA",CCES_Panel$straight_party_vote10)
+
+CCES_Panel$straight_party_vote14 <- ifelse(CCES_Panel$CC14_410b==1 & CCES_Panel$CC14_412==1 & CCES_Panel$CC14_413c==1 & CCES_Panel$CC14_413d==1, 1,0)
+CCES_Panel$straight_party_vote14 <- ifelse(CCES_Panel$CC14_410b==2 & CCES_Panel$CC14_412==2 & CCES_Panel$CC14_413c==2 & CCES_Panel$CC14_413d==2, 1,CCES_Panel$straight_party_vote14)
+CCES_Panel$straight_party_vote14 <- ifelse(CCES_Panel$CC14_410b=="NA" & CCES_Panel$CC14_412=="NA" & CCES_Panel$CC14_413c=="NA" & CCES_Panel$CC14_413d=="NA", "NA",CCES_Panel$straight_party_vote14)
+
+#Undervote
+CCES_Panel$under_vote_10 <- ifelse(CCES_Panel$CC10_355==9 | CCES_Panel$CC10_390==9 | CCES_Panel$CC10_413c==4 | CCES_Panel$CC10_413d==4,1,0)
+CCES_Panel$under_vote_14 <- ifelse(CCES_Panel$CC14_355==9 | CCES_Panel$CC14_390==9 | CCES_Panel$CC14_413c==4 | CCES_Panel$CC14_413d==4,1,0)
+
+#Expand Data
+library(splitstackshape)
+CCES_Panel <- expandRows(CCES_Panel, 2, count.is.col = FALSE, drop = FALSE)
+
+CCES_Panel$id_count <- ave(CCES_Panel$caseid, CCES_Panel$caseid,  FUN = seq_along)
+summary(CCES_Panel$id_count)
+
+##Combine varaibles
+
+CCES_Panel$year <- ifelse(CCES_Panel$id_count==1, 2010, 2014)
+
+CCES_Panel$straight_party_vote <- ifelse(CCES_Panel$id_count==1, CCES_Panel$straight_party_vote10, CCES_Panel$straight_party_vote14)
+CCES_Panel$under_vote <- ifelse(CCES_Panel$id_count==1, CCES_Panel$under_vote_10, CCES_Panel$under_vote_14)
+CCES_Panel$inputstate <- ifelse(CCES_Panel$id_count==1, CCES_Panel$inputstate_10, CCES_Panel$inputstate_14)
+CCES_Panel$knowledge <- ifelse(CCES_Panel$id_count==1, CCES_Panel$knowledge_10, CCES_Panel$knowledge_14)
+CCES_Panel$educ <- ifelse(CCES_Panel$id_count==1, CCES_Panel$educ_10, CCES_Panel$educ_14)
+CCES_Panel$age <- ifelse(CCES_Panel$id_count==1, CCES_Panel$age_10, CCES_Panel$age_14)
+CCES_Panel$male <- ifelse(CCES_Panel$id_count==1, CCES_Panel$male_10, CCES_Panel$male_14)
+CCES_Panel$employed <- ifelse(CCES_Panel$id_count==1, CCES_Panel$employed_10, CCES_Panel$employed_14)
+CCES_Panel$married <- ifelse(CCES_Panel$id_count==1, CCES_Panel$married_10, CCES_Panel$married_14)
+CCES_Panel$dem <- ifelse(CCES_Panel$id_count==1, CCES_Panel$dem_10, CCES_Panel$dem_14)
+CCES_Panel$rep <- ifelse(CCES_Panel$id_count==1, CCES_Panel$rep_10, CCES_Panel$rep_14)
+CCES_Panel$other <- ifelse(CCES_Panel$id_count==1, CCES_Panel$other_10, CCES_Panel$other_14)
+CCES_Panel$conserv <- ifelse(CCES_Panel$id_count==1, CCES_Panel$conserv_10, CCES_Panel$conserv_14)
+CCES_Panel$black <- ifelse(CCES_Panel$id_count==1, CCES_Panel$black_10, CCES_Panel$black_14)
+CCES_Panel$hisp <- ifelse(CCES_Panel$id_count==1, CCES_Panel$hisp_10, CCES_Panel$hisp_14)
+CCES_Panel$invest <- ifelse(CCES_Panel$id_count==1, CCES_Panel$invest_10, CCES_Panel$invest_14)
+CCES_Panel$income <- ifelse(CCES_Panel$id_count==1, CCES_Panel$income_10, CCES_Panel$income_14)
+CCES_Panel$interest <- ifelse(CCES_Panel$id_count==1, CCES_Panel$interest_10, CCES_Panel$interest_14)
+CCES_Panel$partystr <- ifelse(CCES_Panel$id_count==1, CCES_Panel$partystr_10, CCES_Panel$partystr_14)
+
+CCES_Panel$ballot_device <- ifelse(CCES_Panel$inputstate==1, 1 , 0)
+CCES_Panel$ballot_device <- ifelse(CCES_Panel$inputstate==37, 1 , CCES_Panel$ballot_device)
+CCES_Panel$ballot_device <- ifelse(CCES_Panel$inputstate==18, 1 , CCES_Panel$ballot_device)
+CCES_Panel$ballot_device <- ifelse(CCES_Panel$inputstate==21, 1 , CCES_Panel$ballot_device)
+CCES_Panel$ballot_device <- ifelse(CCES_Panel$inputstate==40, 1 , CCES_Panel$ballot_device)
+CCES_Panel$ballot_device <- ifelse(CCES_Panel$inputstate==42, 1 , CCES_Panel$ballot_device)
+CCES_Panel$ballot_device <- ifelse(CCES_Panel$inputstate==45, 1 , CCES_Panel$ballot_device)
+CCES_Panel$ballot_device <- ifelse(CCES_Panel$inputstate==48, 1 , CCES_Panel$ballot_device)
+CCES_Panel$ballot_device <- ifelse(CCES_Panel$inputstate==49, 1 , CCES_Panel$ballot_device)
+CCES_Panel$ballot_device <- ifelse(CCES_Panel$inputstate==26, 1 , CCES_Panel$ballot_device)
+CCES_Panel$ballot_device <- ifelse(CCES_Panel$inputstate==19, 1 , CCES_Panel$ballot_device)
+CCES_Panel$ballot_device <- ifelse(CCES_Panel$inputstate==44, 1 , CCES_Panel$ballot_device)
+CCES_Panel$ballot_device <- ifelse(CCES_Panel$inputstate==55, 1 , CCES_Panel$ballot_device)
+CCES_Panel$ballot_device <- ifelse(CCES_Panel$inputstate==35, 1 , CCES_Panel$ballot_device)
+
+panel <- CCES_Panel[ which(CCES_Panel$ballot_device==1),] 
+
+##Difference in difference
+
+CCES_Panel$time <- ifelse(CCES_Panel$year==2014, 1, 0) 
+CCES_Panel$treated <- ifelse(CCES_Panel$inputstate==37 | CCES_Panel$inputstate==35 | CCES_Panel$inputstate==55, 1, 0)
+CCES_Panel$did <- CCES_Panel$time*CCES_Panel$treated
+
+
+#Subset Data 
+panel <- CCES_Panel[ which(CCES_Panel$ballot_device==1),] 
+
+
+
+
+#2018 Model 
+c2018 <- CCES2018[ which(CCES2018$straight_option==1),] 
+c2018$drop_one_case <- ifelse(c2018$inputstate==13 | c2018$inputstate==34 | c2018$inputstate== 51, 1, 0) 
+c2018 <- c2018[which(c2018$drop_one_case==0),]
+
+fixed_2018 <- glm(straight_ticket ~ recall_reps + age + educ + male + employed + married + dem + rep + conserv + black + hisp + other + invest + income + interest + partystr + Alabama + Indiana + Kentucky + Oklahoma + Pennsylvania + Texas, data = c2018, family="binomial")
+
+fixed_20182 <- glm(straight_ticket ~ pol_know + age + educ + male + employed + married + dem + rep + conserv + black + hisp + other + invest + income + interest + partystr + Alabama + Indiana + Kentucky + Oklahoma + Pennsylvania + Texas, data = c2018, family="binomial")
+
+
+
+summary(fixed_2018)
+
+library(ggplot2)
+library(tibble)
+library(dotwhisker)
+library(broom)
+library(dplyr)
+library(lme4)
+
+coef_plot_H1 <- dwplot(list(fixed_2018, fixed_20182),
+       vline = geom_vline(xintercept = 0, colour = "grey60", linetype = 2)) %>% 
+    relabel_predictors(c(millennials_younger = "Millennial",                       
+                         recall_reps  = "Political Knowledge", 
+                         pol_know= "Party of Government Knowledge",
+                         educ = "Education", 
+                         gear = "Gears", 
+                         male = "Male",
+                         age = "Age",
+                         employed = "Employed",
+                         married = "Married", 
+                         dem = "Democrat", 
+                         rep = "Republican",
+                         black = "Black", 
+                         hisp = "Hispanic", 
+                         other = "Other Race", 
+                         invest = "Investor", 
+                         income = "Income", 
+                         interest = "Political Interest",
+                         partystr = "Partisanship",
+                         SouthCarolina = "South Carolina",
+                         conserv = "Conservative")) +
+     theme_bw() + xlab("Coefficient Estimates") + ylab("") +
+     geom_vline(xintercept = 0, colour = "grey60", linetype = 2) +
+     ggtitle("Figure 2: Political Knowledge and the use of the STV Option") +
+     theme(plot.title = element_text(face="bold"),
+           legend.position = c(0.007, 0.01),
+           legend.justification = c(0, 0), 
+           legend.background = element_rect(colour="grey80"),
+           legend.title = element_blank()) 
+
+library(sjPlot)
+library(ggplot2)
+marginal1 <-plot_model(fixed_2018, type = "pred", axis.title=""
+,   title = "Predicted Probabilities of using the STV Option", terms = "recall_reps")
+
+#DID model  
+didreg <- glm(straight_party_vote ~ age + knowledge + did + treated + time + educ + male + employed + married + dem + rep + conserv + black + hisp + other + invest + income + interest + partystr + caseid, data = panel, family="binomial")
+
+didreg2 <- glm(under_vote ~ age + knowledge + did + treated + time + educ + male + employed + married + dem + rep + conserv + black + hisp + other + invest + income + interest + partystr + caseid, data = panel, family="binomial")
+
+summary(didreg)
+coef_plot_H2 <- dwplot(list(didreg, didreg2),
+       vline = geom_vline(xintercept = 0, colour = "grey60", linetype = 2)) %>% 
+    relabel_predictors(c(did = "DID estimator",
+                         treated = "Treated",
+                         id_count = "Time",
+                         age = "Age",
+                         knowledge  = "Political Knowledge",
+                         time = "Time",
+                         educ = "Education", 
+                         gear = "Gears", 
+                         male = "Male",
+                         employed = "Employed",
+                         married = "Married", 
+                         dem = "Democrat", 
+                         rep = "Republican",
+                         black = "Black", 
+                         hisp = "Hispanic", 
+                         other = "Other Race", 
+                         invest = "Investor", 
+                         income = "Income", 
+                         interest = "Political Interest",
+                         partystr = "Partisanship",
+                         conserv = "Conservative")) +
+     theme_bw() + xlab("Coefficient Estimates") + ylab("") +
+     geom_vline(xintercept = 0, colour = "grey60", linetype = 2) +
+     ggtitle("Figure 3: Differences-in-Differences for Abolition of STV Option") +
+     theme(plot.title = element_text(face="bold"),
+           legend.position = c(0.007, 0.01),
+           legend.justification = c(0, 0), 
+           legend.background = element_rect(colour="grey80"),
+           legend.title = element_blank()) 
+
+
+
+library(ggplot2)
+library(ggmap)
+library(maps)
+library(mapdata)
+library(car)
+
+states <- map_data("state")
+dim(states)
+states$straight <- 0 
+states$straight <- ifelse(states$region=="alabama", 1, states$straight)
+states$straight <- ifelse(states$region=="indiana", 1, states$straight)
+states$straight <- ifelse(states$region=="north carolina", 1, states$straight)
+states$straight <- ifelse(states$region=="kentucky", 1, states$straight)
+states$straight <- ifelse(states$region=="oklahoma", 1, states$straight)
+states$straight <- ifelse(states$region=="pennsylvania", 1, states$straight)
+states$straight <- ifelse(states$region=="south carolina", 1, states$straight)
+states$straight <- ifelse(states$region=="texas", 1, states$straight)
+states$straight <- ifelse(states$region=="utah", 1, states$straight)
+states$straight <- ifelse(states$region=="michigan", 1, states$straight)
+states$straight <- ifelse(states$region=="iowa", 1, states$straight)
+states$straight <- ifelse(states$region=="wisconsin", 1, states$straight)
+states$straight <- ifelse(states$region=="new mexico", 1, states$straight)
+states$straight <- ifelse(states$region=="rhode island", 1, states$straight)
+
+states$remove <- 0
+states$remove <- ifelse(states$region=="new mexico", 1, states$remove)
+states$remove <- ifelse(states$region=="wisconsin", 1, states$remove)
+states$remove <- ifelse(states$region=="north carolina", 1, states$remove)
+
+
+colnames(states)[colnames(states)=="region"] <- "state"
+
+
+
+map <- ggplot(data = states, values = "straight") + 
+  geom_polygon(aes(x = long, y = lat, fill = straight, group = group), color = "white") + 
+  coord_fixed(1.3) +
+  guides(fill=FALSE)  # do this to leave off the color legend
+
+map2 <- ggplot(data = states, values = "straight") + 
+  geom_polygon(aes(x = long, y = lat, fill = remove , group = group), color = "white") + 
+  coord_fixed(1.3) +
+  guides(fill=FALSE)  # do this to leave off the color legend
+
+library(ggpubr)
+comb_map <- ggarrange(map, map2, ncol=2, nrow=1)
+comb_map <- annotate_figure(comb_map, top = text_grob("Figure 1: States and Straight Ticket Ballot Option 2010 and 2014", color = "black", face = "bold", size = 14),bottom = text_grob("Note: State on the right removed ballot options by 2014", face = "bold", size = 10))
+
+marginal1 <-plot_model(fixed_2018, type = "pred", axis.title="", axis.labels = NULL
+,   title = "Figure 4: Political Knowledge and STV Option", terms = "recall_reps")
+
+marginal1a <-plot_model(fixed_20182, type = "pred", axis.title="", axis.labels = NULL
+,   title = "Party Of Government Knowledge and  STV Option", terms = "pol_know")
+
+
+marginal2 <-plot_model(didreg, type = "pred", axis.title="", axis.labels = NULL
+,   title = "Figure 5:  Removing STV Ballot Option and Straight Ticket Voting", terms = "did")
+
+marginal3 <-plot_model(didreg2, type = "pred", axis.title="", axis.labels = NULL
+,   title = "Figure 6: Removing STV Ballot Option and Under Voting", terms = "did")
+
+
+```
+
+Representative democracies require the participation of an informed citizenry. However, levels of political knowledge in the United States have motivated scholars to question whether citizens are capable of making meaningful decisions in the various elections that invite their participation (Carpini and Keeter 1996). Party labels are a valuable resource for voters that are not informed about the details of every election on a ballot (Aldrich and Griffin 2010). Therefore, selecting candidates based on party affiliation is discussed as one of various informational shortcuts employed by voters (Lau and Redlawsk 2001). 
+	Yet not all voters that emphasize party affiliation have low levels of political sophistication. Straight ticket voting, a result of voting for candidates of one political party, is perceived as a quality of politically interested and partisan voters (Campbell et al. 1960). While partisan voters are expected to cast straight ticket ballots, I argue that voters with low levels of political sophistication should also cast straight ticket ballots in contexts that facilitate their ability to link candidates to their party labels. In circumstances where voters are concerned with particular elections on the ballot, voters may use the party affiliation of the candidates and make informed decisions in the remaining elections. Instead of casting under ballots, voters not informed about all elections should be more likely to cast straight ticket ballots if they are using party labels as information shortcuts.
+	Straight ticket options are ballot devices that allow voters to automatically select candidates of the same political party in partisan elections. If voters with low levels of political sophistication are more likely to rely on party labels and ballot options are shortcuts for voters to select candidates based on party labels, I expect less politically sophisticated voters to be more likely to use ballot options. The aim of this paper is to show that the link between low political sophistication and information shortcuts taken from party labels is underscored when voters have a straight ticket option on the ballot. I also show that when the straight ticket option is removed from the ballot, voters become less likely to straight ticket vote and more likely to undervote. 
+
+###Political Knowledge and Straight Ticket Voting:
+
+In this paper, I show that having low levels of political knowledge leads to a higher likelihood of using the straight ticket option. I do not claim that straight ticket voting is a quality of less sophisticated voters in all circumstances. Voters are informed by a variety of information sources and have different information shortcuts available to them. Voters are informed by candidate appearance (Marcus and Mackuen 1993; Riggle et al. 1992), the electoral chances of a candidate  (McKelvey and Ordeshook 1985), and other sources of information shortcuts categorized in previous literature (Lau and Redlawsk 2001). Different informational shortcuts, such as candidate appearance, may lead voters to split ticket vote. Therefore, I do not expect to see political sophistication having a consistent effect on straight ticket voting in all circumstances. Rather, I emphasize using straight ticket options because I can isolate an independent effect of political knowledge and anticipate the effects to be in a particular direction. 
+When the effect of political sophistication is isolated from factors such as partisanship and ideology, I argue that observing the effects of low political knowledge leading to an increase in the probability of using the straight ticket option is evidence of less sophisticated voters taking information shortcuts from political parties. Therefore, my argument suggests the following hypothesis: 
+
+Hypothesis 1: Lower levels of political knowledge lead to a higher likelihood of using the straight ticket ballot option.
+
+###Straight Ticket Options and Voting Behavior: 
+
+By the general elections in 2020, only eight states will have the straight ticket option on their ballots. Since 2010, five states decided to remove the straight ticket option from ballots. The movement towards eliminating straight ticket options warrants an analysis of the implications on voting behavior. Previous literature finds straight ticket options to slightly increase the number of straight ticket ballots (McAllister and Darcy 1992). Other scholars show that political factors outweigh the effects of the straight ticket ballot option (Burden and Kimball 1998).  
+	In this study, I am interested in uncovering the causal effect of removing the straight ticket option from ballots. Previous studies look at individual voters’ propensity to straight ticket vote or aggregate-level observations of more straight ticket ballots. Outcomes are compared across states with and without straight ticket options (Burden and Kimball 2002). However, the recent movement to abolish straight ticket options allows us the opportunity to look at differences in the propensity of straight ticket voting within states. 
+	The removal of ballot options allows the opportunity to test the effect of the straight ticket option on vote choice. Will voters be more likely to split their tickets after straight ticket options are removed? I argue that, in addition to split ticket voting, voters should be expected to cast more undervotes when straight ticket options are removed. Partisan and politically interested voters are more likely to remain straight ticket voters even though they cannot use the ballot option. However, less politically sophisticated voters will be more likely to either undervote or look to additional informational shortcuts and split their tickets. Therefore, I come to the following hypotheses: 
+
+Hypothesis 2: Voters in states that remove the straight ticket voting option will become less likely to straight ticket vote after the ballot option is removed. 
+
+Hypothesis 3: Voters in states that remove the straight ticket voting option will be more likely to undervote after the ballot option is removed.
+
+
+```{r}
+comb_map
+```
+ 
+###Data and Methods: 
+
+To test these propositions, I use data from the Cooperative Congressional Election Study (CCES), a nationally representative internet survey. The CCES survey samples are drawn using a matched random sample. To achieve a more representative sample the CCES stratifies on registered and unregistered voters, state size, and competitive and uncompetitive districts. Individuals take the survey online using opt-in internet panels. To test the first hypothesis, I use the 2018 CCES survey because it is the first wave that includes an item that asks respondents whether they used the straight ticket option. For remaining the hypotheses, I use a CCES panel survey from 2010-2014.
+Although midterm elections have a smaller and more partisan electorate (Burden and Kimball 2002; Wolfinger, Rosenstone, and McIntosh 1981), I use midterm elections to test all three hypotheses. I use midterm elections instead of presidential elections for two reasons. First, the panel data includes two midterm elections and only one presidential election. To compare the effects of having straight ticket options and not having the options, I use midterm elections. Second, the 2018 CCES survey is the first wave that allows direct prediction of using straight ballot options.  
+	The 2018 CCES survey is the first wave to include an item that directly asks respondents if they used the straight ticket option. The question is only asked in states that had straight ticket voting ballot options in 2018. To explain the determinants of straight ticket voting, previous work uses survey items that ask if voters straight ticket voted or combine vote choice items for each election on the ballot (Beck et al. 1992). With data on use of the ballot option, I can test the first hypothesis. Using the direct item is valuable because it allows an individual level analysis of straight ticket voting in states that have the ballot option. Since the question is only asked in states that have the option, my analysis is limited to respondents with the ballot options.  
+	To test the second and third hypotheses I use the 2010-2014 CCES panel study. I test individual level voters’ propensity to straight ticket vote or cast under votes. Figure 1 shows the thirteen states that had straight ticket voting options in 2010. By 2014, three states, New Mexico, North Carolina, and Wisconsin, had removed straight ticket voting options from their ballot. Using the CCES panel data and a difference in difference design, I examine the effect of having the straight ticket option removed on the same voters. 
+
+####Predicting Use of Straight Ticket Options: 
+
+I hypothesize that having lower levels of political sophistication leads to a higher likelihood of using the straight ticket option. To test this hypothesis, I run a logistic regression predicting the use of the straight ticket option. I use the binary item that asks about the use of the ballot option as the dependent variable. I limit my analysis to voters in states with the straight ticket option because the survey question applies only to them. Therefore, my analysis includes voters in the eight states that had straight ticket voting options in 2018.  
+To measure political sophistication, I combine four survey items. The knowledge items ask voters to identify the name and political party of their governor, US House representative, and two senators. The items are combined, and the values range from zero to four. A zero indicates that the respondent was not able to identify any of the political figures and a four indicates that the respondent was able to identify all of the political figures. Increases in the values of political knowledge indicate higher levels of political sophistication. Given my hypothesis, the expected sign on the coefficient for political knowledge is negative. 
+I include a series of controls that have been show to, more generally, influence voting behavior and, more specifically, predict straight ticket voting. Given that previous work shows that more interested voters and partisans are more to likely straight ticket vote (Campbell and Miller 1957; Maddox and Nimmo 1981), I include self-described measures of partisanship and political interest. Evidence consistent with previous findings on partisanship and political interest requires positive coefficients for both measures.  I also include party identification variables that control for whether a respondent identifies as a democrat or republican. Independent respondents are left as the reference category. 
+ I include a variable that controls for respondents’ levels of education. Previous work on the effect of education on split ticket voting comes to conflicting conclusions. Evidence in one study suggest that education increases the likelihood of straight-ticket voting (Campbell and Miller 1957). Other work finds that education increases the likelihood of split-ticket voting (Vries and Tarrance 1972).  Education has also been used as a measure of cognitive sophistication (Beck 1997). Therefore, I control for levels of education to isolate the effect of political knowledge. 
+I control for age because younger voters are found to split their ticket more than older voters (Vries and Tarrance 1972). In addition to the aforementioned variables, I control for additional demographic variables that may be expected to influence voting behavior. State fixed effects are included, and Utah is the reference category.  
+
+```{r}
+coef_plot_H1
+```
+
+####Predicting the Effects of Straight Ticket Options:  
+I argue that the removal of the straight ticket option decreases the probability of straight ticket voting and increases the probability of undervoting. If straight ticket options are shortcuts for less informed voters to cast ballots in all elections, we should expect the removal of the ballot option to lead to less straight ticket voting. To measure the effect of straight ticket voting I use items that are responses to vote choice questions for particular elections. I use individual level data from the CCES panel data (2010-2014) and look at the responses of individuals in 2010 and 2014. I use a difference-in-difference design. The sample consists of respondents in states that had the straight ticket option in 2010. The treatment is the removal of the straight ticket option, which occurred in three state prior to the 2014 midterm elections. I argue that the removal of the option will lead to a decrease in the propensity to straight ticket vote and an increase in the propensity to undervote.
+To generate a variable that is consistent and comparable across states in the sample, I look at vote choice in four elections: US House, US Senate, state lower chamber, and state senate. I assume that looking at these four variables can capture straight ticket voting patterns even without including additional elections such as governor elections. The assumption is based on the consistency of these variables in midterm elections and across states. This assumption also extends to measuring undervotes as an alternative outcome. If the respondent undervotes in any of the four elections, the respondent is considered to have undervoted in that election. Both outcome variables are binary.
+The CCES panel data does not include the political recall variable used to measure political knowledge for the first hypothesis. Instead, I use a variable that asks voters to identify the party that controls each of the following legislative chambers: US House, US Senate, state lower chamber, state senate. I combine the four responses into one variable that ranges from zero to four. As figure 2 shows, both the recall variable and party of government variable preform equally as well in the first model. 
+	To test the second and third hypotheses, I run a logistic regression including a difference-in-difference estimator. The difference-in-difference estimator is expected to be negative when the dependent variable is straight-ticket vote and negative when the dependent variable is undervote. The model includes the same predictors that were used to predict the use of ballot options. The difference-in-difference design allows for the isolation of the effect of the straight ticket option. Results will illustrate whether voters’ behavior is altered when the is option removed and how voters will vote in that condition. 
+
+```{r}
+coef_plot_H2
+```
+
+
+###Results: 
+Figure 2  summarizes the results for the model that predicts the use of the straight ticket option. Using the CCES 2018 survey, I find that political knowledge predicts use of the straight ticket option. Both measures of political knowledge have a negative and statistically significant impact on using the straight ticket ballot option. Figure 3 shows the predicted probabilities of both political knowledge variables on using the straight ticket option. Based on these results, I can conclude that, controlling for other predictors, political knowledge influences straight ticket voting. More specifically, less sophisticated voters are more likely to use the straight ticket ballot option. 
+
+```{r}
+marginal1
+```
+
+	The results in figure 4 confirm my expectation about the effects of removing the straight ticket option. In model 1, the dependent variable is straight ticket voting. Model 1 shows that the same respondents, surveyed in 2010, are expected to be less likely to straight ticket vote in the absence of the straight ticket option in 2014. The dependent variable is undervote in model 2. Model 2 shows that the same respondents are more likely to cast undervotes when the ballot option is removed. Partisanship and political interest seem to have the same effect that was hypothesize by previous scholars (Campbell and Miller 1957; Maddox and Nimmo 1981). If changes in the partisanship and interest variables were observed, the effects would be in a positive direction for straight ticket voting and a negative direction for undervote. 
+	
+```{r}
+marginal2
+```
+
+
+```{r}
+marginal3
+```
+
+###Conclusion: 
+Using aggregate data, previous scholars have shown that having a ballot option increases straight ticket voting in a state (McAllister and Darcy 1992). My work informs the literature in two ways. First, I show that less sophisticated voters are more likely to use the option. Instead of relying on outcome measures, I use an item that directly asks whether a voter used the option. I provide evidence that less sophisticated voters are looking to party labels for information shortcuts. The recall political knowledge measure asks voters to identify their representatives. Voters that are not able to identify the names and parties of their representatives are more likely to use the master level ballot option. The results are consistent across two measures of political knowledge. The second measure, which asks voters to identify the majority party in state legislatures, mitigates concerns about endogeneity because the information required is not affected by whether you see all or parts of the ballot. Also, both information variables ask questions about relatively stable topics. Whether because of the length of representatives’ terms or the stability in the party of government in most states, I argue that the measures capture political sophistication. 
+	I argue that dependency on the straight ticket ballot is evidence that voters rely on party labels. While the link between voting and party labels has been show to exist in some of the seminal works on voting behavior (Downs 1957; Key and Cummings 1966), I argue that ballot options strengthened that link. I show that the removal of options caused the same voters to be less likely to straight ticket vote and more likely to undervote than they were when they had the ballot options. 
+	Therefore, we can conclude that the removal of straight ticket options from election ballots will leads to less straight ticket ballots and more undervote ballots. The outcomes are explained by the voters’ dependence on party labels. Less engaged and politically sophisticated voters use ballot options as a way of looking to party labels as informational shortcuts. Since we expect that voters will cast more missing and split ballots, future works should explore the resulting changes in the behavior of representative. 
+
+---
+
+###References:
+
+Aldrich, John H., and John D. Griffin. 2010. “Parties, Elections, and Democratic Politics.” The Oxford Handbook of American Elections and Political Behavior. https://www-oxfordhandbooks-com.proxy.lib.uiowa.edu/view/10.1093/oxfordhb/9780199235476.001.0001/oxfordhb-9780199235476-e-31 (May 6, 2019).
+
+Beck, Paul Allen. 1997. Party Politics in America. Longman.
+
+Beck, Paul Allen, Lawrence Baum, Aage R. Clausen, and Charles E. Smith. 1992. “Patterns and Sources of Ticket Splitting in Subpresidential Voting.” The American Political Science Review 86(4): 916–28.
+
+Burden, Barry C., and David C. Kimball. 1998. “A New Approach to the Study of Ticket Splitting.” American Political Science Review 92(3): 533–44.
+
+———. 2002. Why Americans Split Their Tickets: Campaigns, Competition, and Divided Government. University of Michigan Press. https://www.jstor.org/stable/10.3998/mpub.22995 (March 24, 2019).
+
+Campbell, Angus et al. 1960. The American Voter. University of Chicago Press.
+
+Campbell, Angus, and Warren E. Miller. 1957. “The Motivational Basis of Straight and Split Ticket Voting.” The American Political Science Review 51(2): 293–312.
+
+Carpini, Michael X. Delli, and Scott Keeter. 1996. What Americans Know about Politics and Why It Matters. Yale University Press.
+Downs, Anthony. 1957. An Economic Theory of Democracy. Harper.
+
+Key, Valdimer Orlando, and Milton C. Cummings. 1966. The Responsible Electorate: Rationality in Presidential Voting, 1936-1960. Belknap Press of Harvard University Press.
+
+Lau, Richard R., and David P. Redlawsk. 2001. “Advantages and Disadvantages of Cognitive Heuristics in Political Decision Making.” American Journal of Political Science 45(4): 951–71.
+
+Maddox, William S., and Dan Nimmo. 1981. “In Search of the Ticket Splitter.” Social Science Quarterly (University of Texas Press) 62(3): 401–8.
+
+Marcus, George E., and Michael B. Mackuen. 1993. “Anxiety, Enthusiasm, and the Vote: The Emotional Underpinnings of Learning and Involvement During Presidential Campaigns.” The American Political Science Review 87(3): 672–85.
+
+McAllister, Ian, and Robert Darcy. 1992. “Sources of Split-Ticket Voting in the 1988 American Elections.” Political Studies 40(4): 695–712.
+
+McKelvey, Richard D., and Peter C. Ordeshook. 1985. “Sequential Elections with Limited Information.” American Journal of Political Science 29(3): 480–512.
+
+Riggle, Ellen D. et al. 1992. “Bases of Political Judgments: The Role of Stereotypic and Nonstereotypic Information.” Political Behavior 14(1): 67–87.
+
+Solt, Frederick et al. 2018. Dotwhisker: Dot-and-Whisker Plots of Regression Results. https://CRAN.R-project.org/package=dotwhisker (May 10, 2019).
+
+Vries, Walter De, and V. Lance Tarrance. 1972. The Ticket-Splitter: A New Force in American Politics. Eerdmans.
+
+Wolfinger, Raymond E., Steven J. Rosenstone, and Richard A. McIntosh. 1981. “Presidential and Congressional Voters Compared.” American Politics Quarterly 9(2): 245–56.
+
