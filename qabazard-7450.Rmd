@@ -16,7 +16,7 @@ keywords: "Straight-Ticket Voting, Split-Ticket Voting, Political Knowledge"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 fontsize: 12pt
 spacing: double
-bibliography: \dummy{`r file.path(getwd(),'qabazard-7450')`}
+bibliography: \dummy{`r file.path(getwd(),'qabazard-7450.bib')`}
 
 biblio-style: apsr
 citecolor: black
@@ -25,11 +25,27 @@ endnote: no
 ---
 
 ```{r include=FALSE}
+#Download data if necessary
+dir.create("data", showWarnings = FALSE)
+if (!file.exists("data/CCES2018_OUTPUT.dta")) {
+    library(dataverse)
+    Sys.setenv("DATAVERSE_SERVER" = "dataverse.harvard.edu")
+    writeBin(get_file(file = "CCES2018_OUTPUT.tab",
+                      dataset = "doi:10.7910/DVN/ZSBZ7K"),
+             "data/CCES2018_OUTPUT.dta")
+}
+if (!file.exists("data/CCES_Panel_Full3waves_VV_V4.dta")) {
+    library(dataverse)
+    Sys.setenv("DATAVERSE_SERVER" = "dataverse.harvard.edu")
+    writeBin(get_file(file = "CCES_Panel_Full3waves_VV_V4.dta",
+                      dataset = "doi:10.7910/DVN/TOE8I1"),
+             "data/CCES_Panel_Full3waves_VV_V4.dta")
+}
 
 #Load data
 library(readstata13)
-CCES2018 <- read.dta13("CCES2018_OUTPUT.dta", convert.factors = FALSE)
-CCES_Panel <- read.dta13("CCES_Panel_Full3waves_VV_V4.dta", convert.factors = FALSE)
+CCES2018 <- read.dta13("data/CCES2018_OUTPUT.dta", convert.factors = FALSE)
+CCES_Panel <- read.dta13("data/CCES_Panel_Full3waves_VV_V4.dta", convert.factors = FALSE)
 
 #Recode Variables
 
